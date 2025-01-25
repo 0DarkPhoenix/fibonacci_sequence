@@ -2,6 +2,7 @@
 A high-performance CLI application written in Rust that can calculate any positive Nth number of the Fibonacci sequence.
 
 ![CLI Fibonacci calculation](images/image.png)
+<div align="center"><em>Screenshot of the CLI application finished calculating the 26 millionth Fibonacci number in 988 milliseconds (Ryzen 7 5800X3D @ 4.4GHz).</em></div>
 
 ## Usage
 1. Clone this repository: 
