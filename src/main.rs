@@ -7,6 +7,7 @@ use std::{
 
 fn main() {
     loop {
+        // Prompt the user for a Fibonacci number index
         print!("Enter Fibonacci number index (or 'q' to quit): ");
         io::stdout().flush().unwrap();
 
@@ -26,6 +27,7 @@ fn main() {
             }
         };
 
+        // Calculate the Fibonacci number and save the duration of the calculation
         let start_time = Instant::now();
         let calc_result = calculate_fibonacci(input_value);
         let duration = format_duration(start_time.elapsed().as_secs_f64());
@@ -38,13 +40,19 @@ fn main() {
                 );
                 println!("Fibonacci calculation duration: {}", duration);
 
+                // Start time of the conversion duration
                 let conversion_start_time = Instant::now();
+
+                // Use scientific notation when the result is larger than 10^35
                 let use_scientific_notation = fibonacci_result > BigUint::from(10u32).pow(35);
+
+                // Convert the result based on the use_scientific_notation boolean
                 let result = if use_scientific_notation {
                     scientific_notation(&fibonacci_result)
                 } else {
                     fibonacci_result.to_string()
                 };
+                // Save the duration of the conversion
                 let conversion_duration =
                     format_duration(conversion_start_time.elapsed().as_secs_f64());
 
@@ -92,9 +100,10 @@ fn calculate_fibonacci(n: u64) -> Result<BigUint, String> {
         let (a, b) = fib_pair(n >> 1);
         let two = BigUint::from(2u32);
 
-        // Parallel computation for large numbers
+        // Execute the Fibonacci pair calculation in parallel
         let (c, d) = rayon::join(|| &a * (&b * &two - &a), || &a * &a + &b * &b);
 
+        // Determine the result based on if n is even or odd
         let result = if n & 1 == 0 {
             (c, d)
         } else {
@@ -128,10 +137,11 @@ fn scientific_notation(number: &BigUint) -> String {
     if number == &BigUint::new(vec![]) {
         return "0.0e0".to_string();
     }
-
+    // Determine the total number of digits using an approximation
     let bits = number.bits() as u64;
-    let mut total_digits = ((bits as f64) * 0.30102999566398114) as u32;
+    let mut total_digits = ((bits as f64) * 0.30102999566398114) as u32; // Calculate the total number of digits using the approximation of log10(2) ≈ 0.30102999566398114
 
+    // Correct the total digits approximation to get to the correct number of digits
     let base = BigUint::from(10u32);
     let mut power = base.pow(total_digits / 2).pow(2)
         * if total_digits % 2 == 1 {
@@ -152,10 +162,12 @@ fn scientific_notation(number: &BigUint) -> String {
         _ => {}
     }
 
+    // Extract the first digits from the number based on the first_digits_count
     let shift = total_digits - (first_digits_count - 1) as u32;
     let divisor = base.pow(shift);
     let mut first_digits = number / divisor;
 
+    // Correct the first digits if they exceed the upper or lower bounds
     let upper_bound = BigUint::from(10u32).pow(first_digits_count as u32);
     let lower_bound = BigUint::from(10u32).pow((first_digits_count - 1) as u32);
 
@@ -167,15 +179,15 @@ fn scientific_notation(number: &BigUint) -> String {
         first_digits *= 10u32;
         total_digits -= 1;
     }
-
+    // Format the result to scientific notation
     let divider = 10u32.pow(first_digits_count as u32 - 1);
-    let first_part = &first_digits / divider;
-    let second_part = &first_digits % divider;
+    let integer_part = &first_digits / divider;
+    let decimals_part = &first_digits % divider;
     let result = format!(
         "{}.{:04}e+{}",
-        first_part,
-        second_part,
-        thousands_separator(total_digits as u64) // Print the total digits with a thousands separator (,)
+        integer_part,
+        decimals_part,
+        thousands_separator(total_digits as u64)
     );
 
     result
