@@ -1,6 +1,5 @@
 use num_bigint::BigUint;
 use std::{
-    cmp::Ordering,
     io::{self, Write},
     time::Instant,
 };
@@ -131,68 +130,47 @@ fn calculate_fibonacci(n: u64) -> Result<BigUint, String> {
 /// # Returns
 /// A `String` representing the input `BigUint` number in scientific notation format.
 fn scientific_notation(number: &BigUint) -> String {
-    let first_digits_count = 5 as u8;
+    let first_digits_count = 5 as usize;
+    let extra_digits = first_digits_count * 2;
 
-    // Handle zero case
     if number == &BigUint::new(vec![]) {
         return "0.0e0".to_string();
     }
-    // Determine the total number of digits using an approximation
-    let bits = number.bits() as u64;
-    let mut total_digits = ((bits as f64) * 0.30102999566398114) as u32; // Calculate the total number of digits using the approximation of log10(2) ≈ 0.30102999566398114
 
-    // Correct the total digits approximation to get to the correct number of digits
-    let base = BigUint::from(10u32);
-    let mut power = base.pow(total_digits / 2).pow(2)
-        * if total_digits % 2 == 1 {
-            BigUint::from(10u32)
-        } else {
-            BigUint::from(1u32)
-        };
+    let base = BigUint::from(10u64);
+    let mut first_digits_power = base.pow(first_digits_count as u32);
 
-    match number.cmp(&power) {
-        Ordering::Less => {
-            total_digits -= 1;
-            power /= 10u32;
-        }
-        Ordering::Greater if &power * 10u32 <= *number => {
-            total_digits += 1;
-            power *= 10u32;
-        }
-        _ => {}
-    }
+    // Approximate digit count
+    let bits = number.bits() as f64;
+    let mut total_digits = (bits * 2f64.log10()) as u64;
 
-    // Extract the first digits from the number based on the first_digits_count
-    let shift = total_digits - (first_digits_count - 1) as u32;
-    let divisor = base.pow(shift);
-    let mut first_digits = number / divisor;
+    // Compute shift and divisor to get more digits than needed
+    let shift = total_digits.saturating_sub(extra_digits as u64);
+    let divisor = base.pow(shift as u32);
 
-    // Correct the first digits if they exceed the upper or lower bounds
-    let upper_bound = BigUint::from(10u32).pow(first_digits_count as u32);
-    let lower_bound = BigUint::from(10u32).pow((first_digits_count - 1) as u32);
+    // Get the first portion of digits
+    let first_digits = number / &divisor;
 
-    while first_digits >= upper_bound {
-        first_digits /= 10u32;
-        total_digits += 1;
-    }
-    while first_digits < lower_bound {
-        first_digits *= 10u32;
+    // Correct the total digits when the integer part is zero
+    let mut integer_part = &first_digits / &first_digits_power;
+
+    while integer_part == BigUint::new(vec![]) {
         total_digits -= 1;
+        first_digits_power *= &base;
+        integer_part = &first_digits / &first_digits_power;
     }
-    // Format the result to scientific notation
-    let divider = 10u32.pow(first_digits_count as u32 - 1);
-    let integer_part = &first_digits / divider;
-    let decimals_part = &first_digits % divider;
-    let result = format!(
-        "{}.{:04}e+{}",
-        integer_part,
-        decimals_part,
-        thousands_separator(total_digits as u64)
-    );
 
-    result
+    // Get the integer part and the decimal part of the first digits
+    let first_digits_str = first_digits.to_string();
+    let (integer_string, decimal_string) = first_digits_str[..first_digits_count].split_at(1);
+
+    format!(
+        "{}.{}e+{}",
+        integer_string,
+        decimal_string,
+        thousands_separator(total_digits)
+    )
 }
-
 /// Formats a duration value as a human-readable string.
 ///
 /// This function takes a duration value in seconds and formats it as a string
